@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MealDB Explorer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"],
+    select {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      min-width: 200px;
+    }
+
+    .meal-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .meal-card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: transform 0.2s;
+    }
+
+    .meal-card:hover {
+      transform: scale(1.02);
+    }
+
+    .meal-card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+    }
+
+    .meal-info {
+      padding: 15px;
+    }
+
+    .meal-info h3 {
+      margin: 0 0 10px;
+      font-size: 1.1em;
+      color: #333;
+    }
+
+    .meal-info p {
+      margin: 4px 0;
+      color: #555;
+      font-size: 0.95em;
+    }
+
+    @media (max-width: 500px) {
+      .controls {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      input[type="text"],
+      select {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🍽️ Meals Explorer 🍴</h1>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Search by name or category..." />
+    <select id="sort">
+      <option value="">Sort By</option>
+      <option value="name-asc">Name A → Z</option>
+      <option value="name-desc">Name Z → A</option>
+      <option value="area-asc">Area A → Z</option>
+      <option value="area-desc">Area Z → A</option>
+    </select>
+  </div>
+
+  <div class="meal-container" id="meal-container">
+  </div>
+
+  <script>
+    const API_URL = 'https://www.themealdb.com/api/json/v1/1/search.php?f=a';
+    const mealContainer = document.getElementById('meal-container');
+    const searchInput = document.getElementById('search');
+    const sortSelect = document.getElementById('sort');
+
+    let meals = [];
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        meals = data.meals || [];
+        renderMeals(meals);
+      } catch (error) {
+        mealContainer.innerHTML = '<p>Error loading meals. Please try again later.</p>';
+        console.error(error);
+      }
+    });
+
+    function renderMeals(mealList) {
+      mealContainer.innerHTML = '';
+
+      if (mealList.length === 0) {
+        mealContainer.innerHTML = '<p>No meals found.</p>';
+        return;
+      }
+
+      mealList.forEach(meal => {
+        const card = document.createElement('div');
+        card.className = 'meal-card';
+
+        card.innerHTML = `
+          <img src="${meal.strMealThumb}" alt="${meal.strMeal}" />
+          <div class="meal-info">
+            <h3>${meal.strMeal}</h3>
+            <p><strong>Category:</strong> ${meal.strCategory}</p>
+            <p><strong>Area:</strong> ${meal.strArea}</p>
+          </div>
+        `;
+
+        mealContainer.appendChild(card);
+      });
+    }
+    searchInput.addEventListener('input', () => {
+      const term = searchInput.value.toLowerCase();
+      const filtered = meals.filter(meal =>
+        meal.strMeal.toLowerCase().includes(term) ||
+        meal.strCategory.toLowerCase().includes(term)
+      );
+      const sorted = sortMeals(filtered, sortSelect.value);
+      renderMeals(sorted);
+    });
+
+    sortSelect.addEventListener('change', () => {
+      const term = searchInput.value.toLowerCase();
+      const filtered = meals.filter(meal =>
+        meal.strMeal.toLowerCase().includes(term) ||
+        meal.strCategory.toLowerCase().includes(term)
+      );
+      const sorted = sortMeals(filtered, sortSelect.value);
+      renderMeals(sorted);
+    });
+
+    function sortMeals(mealList, criteria) {
+      let sorted = [...mealList];
+      switch (criteria) {
+        case 'name-asc':
+          sorted.sort((a, b) => a.strMeal.localeCompare(b.strMeal));
+          break;
+        case 'name-desc':
+          sorted.sort((a, b) => b.strMeal.localeCompare(a.strMeal));
+          break;
+        case 'area-asc':
+          sorted.sort((a, b) => a.strArea.localeCompare(b.strArea));
+          break;
+        case 'area-desc':
+          sorted.sort((a, b) => b.strArea.localeCompare(a.strArea));
+          break;
+      }
+      return sorted;
+    }
+  </script>
+</body>
+</html>

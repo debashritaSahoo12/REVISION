@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather & Forecast App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #eef2f5;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+    }
+    #search-form {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    #search-form input {
+      flex: 1;
+      padding: 10px;
+      font-size: 1em;
+    }
+    #search-form button {
+      padding: 10px 20px;
+      font-size: 1em;
+      margin-left: 10px;
+    }
+    .weather-map {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .weather-info, #map {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .weather-info {
+      flex: 1;
+      min-width: 250px;
+    }
+    #map {
+      width: 100%;
+      height: 300px;
+      min-width: 250px;
+    }
+    .forecast-container {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+    }
+    .forecast-card {
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .forecast-card img {
+      width: 50px;
+      height: 50px;
+    }
+    @media (max-width: 600px) {
+      .weather-map {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Weather App</h1>
+    <div id="search-form">
+      <input type="text" id="city-input" placeholder="Enter city name" />
+      <button id="search-btn">Search</button>
+    </div>
+    <div class="weather-map">
+      <div class="weather-info" id="weather-info">
+      </div>
+      <div id="map"></div>
+    </div>
+    <button id="forecast-btn" style="margin-top:20px;">5‑Day Forecast</button>
+    <div class="forecast-container" id="forecast-container" style="display:none;">
+    </div>
+  </div>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4Te9k8yZtIh7Vrnk95gbgJab2gmGSCnU"></script>
+  <script>
+    const OPENWEATHER_API_KEY = '43cd3cbb46a70d2e5f5709bc4ad5c964';
+
+    let map;
+    let marker;
+
+    function initMap(lat = 0, lon = 0) {
+      const loc = { lat, lng: lon };
+      if (!map) {
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: loc,
+          zoom: 8
+        });
+      } else {
+        map.setCenter(loc);
+      }
+      if (!marker) {
+        marker = new google.maps.Marker({
+          position: loc,
+          map: map
+        });
+      } else {
+        marker.setPosition(loc);
+      }
+    }
+
+    async function fetchCurrentWeatherByCoords(lat, lon) {
+      const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`);
+      const data = await resp.json();
+      return data;
+    }
+
+    async function fetchCurrentWeatherByCity(city) {
+      const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${OPENWEATHER_API_KEY}`);
+      const data = await resp.json();
+      return data;
+    }
+
+    async function fetchForecastByCoords(lat, lon) {
+      const resp = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${OPENWEATHER_API_KEY}`);
+      const data = await resp.json();
+      return data;
+    }
+
+    function formatTime(unixTimestamp, timezoneOffset) {
+      const date = new Date((unixTimestamp + timezoneOffset) * 1000);
+      const hh = date.getUTCHours().toString().padStart(2, '0');
+      const mm = date.getUTCMinutes().toString().padStart(2, '0');
+      const ss = date.getUTCSeconds().toString().padStart(2, '0');
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function displayCurrentWeather(data) {
+      const infoDiv = document.getElementById('weather-info');
+      infoDiv.innerHTML = '';
+
+      const { name, sys, weather, main, wind, timezone } = data;
+
+      const temp = main.temp;
+      const humidity = main.humidity;
+      const windSpeed = wind.speed;
+      const condition = weather[0].main;
+      const icon = weather[0].icon; 
+      const sunrise = sys.sunrise;
+      const sunset = sys.sunset;
+
+      const sunriseStr = formatTime(sunrise, data.timezone);
+      const sunsetStr = formatTime(sunset, data.timezone);
+
+      infoDiv.innerHTML = `
+        <h2>${name}</h2>
+        <p><img src="https://openweathermap.org/img/wn/${icon}@2x.png" alt="${condition}"> ${condition}</p>
+        <p><strong>Temperature:</strong> ${temp} °C</p>
+        <p><strong>Humidity:</strong> ${humidity}%</p>
+        <p><strong>Wind Speed:</strong> ${windSpeed} m/s</p>
+        <p><strong>Sunrise:</strong> ${sunriseStr}</p>
+        <p><strong>Sunset:</strong> ${sunsetStr}</p>
+      `;
+    }
+
+    function displayForecast(forecastData) {
+      const fcDiv = document.getElementById('forecast-container');
+      fcDiv.innerHTML = '';
+      fcDiv.style.display = 'grid';
+      const byDay = {}; 
+      forecastData.list.forEach(entry => {
+        const dateText = entry.dt_txt.split(' ')[0];
+        if (!byDay[dateText]) byDay[dateText] = [];
+        byDay[dateText].push(entry);
+      });
+
+      const days = Object.keys(byDay).slice(0,5);
+      days.forEach(dateText => {
+        const entries = byDay[dateText];
+        let temps = entries.map(e => e.main.temp);
+        const minTemp = Math.min(...temps);
+        const maxTemp = Math.max(...temps);
+        const rep = entries[Math.floor(entries.length / 2)]; 
+        const icon = rep.weather[0].icon;
+        const condition = rep.weather[0].main;
+
+        const card = document.createElement('div');
+        card.className = 'forecast-card';
+        card.innerHTML = `
+          <h4>${dateText}</h4>
+          <img src="https://openweathermap.org/img/wn/${icon}@2x.png" alt="${condition}">
+          <p>${condition}</p>
+          <p>Min: ${minTemp.toFixed(1)}°C</p>
+          <p>Max: ${maxTemp.toFixed(1)}°C</p>
+        `;
+        fcDiv.appendChild(card);
+      });
+    }
+
+    async function showWeatherByCoords(lat, lon) {
+      try {
+        const current = await fetchCurrentWeatherByCoords(lat, lon);
+        if (current.cod && current.cod !== 200) {
+          document.getElementById('weather-info').innerText = 'Failed to fetch weather.';
+          return;
+        }
+        displayCurrentWeather(current);
+        initMap(lat, lon);
+        document.getElementById('forecast-container').style.display = 'none';
+      } catch (err) {
+        console.error(err);
+        document.getElementById('weather-info').innerText = 'Error fetching weather.';
+      }
+    }
+
+    async function showWeatherByCity(city) {
+      try {
+        const current = await fetchCurrentWeatherByCity(city);
+        if (current.cod && current.cod !== 200) {
+          document.getElementById('weather-info').innerText = 'City not found.';
+          return;
+        }
+        const lat = current.coord.lat;
+        const lon = current.coord.lon;
+        displayCurrentWeather(current);
+        initMap(lat, lon);
+        document.getElementById('forecast-container').style.display = 'none';
+      } catch (err) {
+        console.error(err);
+        document.getElementById('weather-info').innerText = 'Error fetching weather.';
+      }
+    }
+
+    window.addEventListener('load', () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const { latitude, longitude } = position.coords;
+          showWeatherByCoords(latitude, longitude);
+        }, (err) => {
+          console.log('Geolocation denied or unavailable.');
+        });
+      }
+    });
+
+    document.getElementById('search-btn').addEventListener('click', () => {
+      const city = document.getElementById('city-input').value.trim();
+      if (city) showWeatherByCity(city);
+    });
+
+    document.getElementById('city-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const city = document.getElementById('city-input').value.trim();
+        if (city) showWeatherByCity(city);
+      }
+    });
+
+    document.getElementById('forecast-btn').addEventListener('click', async () => {
+      if (window.currentLat != null && window.currentLon != null) {
+        try {
+          const forecast = await fetchForecastByCoords(window.currentLat, window.currentLon);
+          displayForecast(forecast);
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        document.getElementById('forecast-container').innerText = 'No location selected.';
+        document.getElementById('forecast-container').style.display = 'block';
+      }
+    });
+
+  </script>
+</body>
+</html>
