@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Meal App with Pagination</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .meal { border: 1px solid #ccc; padding: 10px; margin: 5px; display: inline-block; width: 180px; }
+    .pagination { margin-top: 20px; }
+    .pagination button { margin: 2px; padding: 5px 10px; }
+    .active { background: #007bff; color: white; }
+    .controls { margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Meal Finder 🍲</h1>
+
+  <div class="controls">
+    <label>Sort by:
+      <select id="sortSelect">
+        <option value="asc">Name (A-Z)</option>
+        <option value="desc">Name (Z-A)</option>
+      </select>
+    </label>
+
+    <label>Filter by Category:
+      <select id="filterCategory">
+        <option value="all">All</option>
+        <option value="Seafood">Seafood</option>
+        <option value="Beef">Beef</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="mealsContainer"></div>
+  <div class="pagination" id="pagination"></div>
+
+  <script>
+    let allMeals = [];
+    let filteredMeals = [];
+    let currentPage = 1;
+    const mealsPerPage = 5;
+    async function fetchMeals() {
+      const res = await fetch("https://www.themealdb.com/api/json/v1/1/search.php?s=");
+      const data = await res.json();
+      allMeals = data.meals || [];
+      applyFiltersAndSorting();
+    }
+
+    function applyFiltersAndSorting() {
+      const sortValue = document.getElementById("sortSelect").value;
+      const categoryValue = document.getElementById("filterCategory").value;
+
+      filteredMeals = allMeals.filter(meal => {
+        return categoryValue === "all" || meal.strCategory === categoryValue;
+      });
+
+      filteredMeals.sort((a, b) => {
+        if (sortValue === "asc") return a.strMeal.localeCompare(b.strMeal);
+        else return b.strMeal.localeCompare(a.strMeal);
+      });
+
+      currentPage = 1; 
+      renderMeals();
+      renderPagination();
+    }
+
+    function renderMeals() {
+      const container = document.getElementById("mealsContainer");
+      container.innerHTML = "";
+
+      const start = (currentPage - 1) * mealsPerPage;
+      const end = start + mealsPerPage;
+      const mealsToShow = filteredMeals.slice(start, end);
+
+      mealsToShow.forEach(meal => {
+        const div = document.createElement("div");
+        div.classList.add("meal");
+        div.innerHTML = `<h4>${meal.strMeal}</h4><img src="${meal.strMealThumb}" width="150">`;
+        container.appendChild(div);
+      });
+    }
+
+    function renderPagination() {
+      const pagination = document.getElementById("pagination");
+      pagination.innerHTML = "";
+      const totalPages = Math.ceil(filteredMeals.length / mealsPerPage);
+
+      if (totalPages <= 1) return;
+
+      const firstBtn = document.createElement("button");
+      firstBtn.textContent = "<< First";
+      firstBtn.onclick = () => { currentPage = 1; renderMeals(); renderPagination(); };
+      pagination.appendChild(firstBtn);
+
+      let maxVisible = 5;
+      let start = Math.max(1, currentPage - 2);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+
+      if (end - start < maxVisible - 1) {
+        start = Math.max(1, end - maxVisible + 1);
+      }
+
+      for (let i = start; i <= end; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        if (i === currentPage) btn.classList.add("active");
+        btn.onclick = () => { currentPage = i; renderMeals(); renderPagination(); };
+        pagination.appendChild(btn);
+      }
+
+      const lastBtn = document.createElement("button");
+      lastBtn.textContent = "Last >>";
+      lastBtn.onclick = () => { currentPage = totalPages; renderMeals(); renderPagination(); };
+      pagination.appendChild(lastBtn);
+    }
+
+    document.getElementById("sortSelect").addEventListener("change", applyFiltersAndSorting);
+    document.getElementById("filterCategory").addEventListener("change", applyFiltersAndSorting);
+
+    fetchMeals();
+  </script>
+</body>
+</html>
