@@ -1,0 +1,36 @@
+.container {
+  font-family: sans-serif;
+  text-align: center;
+  padding: 2rem;
+}
+
+button {
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.mic-icon {
+  margin-top: 1rem;
+  font-size: 2rem;
+}
+
+.red {
+  color: red;
+}
+
+.green {
+  color: green;
+}
+
+.transcript {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #ccc;
+  min-height: 100px;
+  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: #f9f9f9;
+}
